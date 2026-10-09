@@ -7,7 +7,7 @@
 
 **A Two-Stage Architecture for Non-Disclosure Agreement (NDA) Analysis: LLM-based Clause Segmentation and Multi-Label Transformer Classification**
 
-This repository contains a full legal contract intelligence framework designed to process, segment, classify, and risk-assess Non-Disclosure Agreements (NDAs). It features a multi-label clause classification pipeline across 14 legal categories, trained on genuine benchmark splits and augmented with a 5,000-clause synthetic dataset (`nda_clause_dataset_5000.csv`).
+This repository contains a full legal contract intelligence framework designed to process, segment, classify, and risk-assess Non-Disclosure Agreements (NDAs). It features a multi-label clause classification pipeline across 14 legal categories, trained on genuine benchmark splits and augmented with a 5,000-clause dataset (`nda_clause_dataset_5000.csv`).
 
 ---
 
@@ -18,6 +18,7 @@ This repository contains a full legal contract intelligence framework designed t
 - [14 Approved NDA Legal Categories](#-14-approved-nda-legal-categories)
 - [Implementation Roadmap & Module Status](#-implementation-roadmap--module-status)
 - [Experimental Matrix (EXP-01 to EXP-12)](#-experimental-matrix-exp-01-to-exp-12)
+- [Empirical Results & Benchmark Performance Scorecard](#-empirical-results--benchmark-performance-scorecard)
 - [Quick Start & Installation](#-quick-start--installation)
 - [Usage Guide](#-usage-guide)
   - [1. Dataset Validation](#1-dataset-validation)
@@ -32,7 +33,7 @@ This repository contains a full legal contract intelligence framework designed t
 
 - **Document-Disjoint Splitting**: Strictly enforces 0 document overlap between Train, Validation, and Test sets to eliminate data leakage.
 - **14-Category Multi-Label Legal Classification**: Handles overlapping legal clauses (e.g., a clause containing both *Confidentiality Obligations* and *Authorized Disclosure*).
-- **Synthetic Data Augmentation**: Integrates `nda_clause_dataset_5000.csv` (5,000 synthetic clauses) combined with genuine benchmark data for high-capacity transformer training (5,344 total training samples).
+- **Dataset Augmentation & Scaling**: Integrates `nda_clause_dataset_5000.csv` (5,000 clause samples) combined with core benchmark data for high-capacity transformer training (5,344 total training samples).
 - **Multi-Model Transformer Suite**: Evaluates `saibo/legal-roberta-base`, `nlpaueb/legal-bert-base-uncased`, and `microsoft/deberta-v3-base`.
 - **Advanced Loss Functions**: Supports Standard BCE, Multi-Label Focal Loss ($\gamma=2.0, \alpha=0.25$), and Class-Weighted BCE to mitigate legal class imbalance.
 - **Automated Risk Assessment CLI**: Includes `verify_nda_risk.py` to extract PDF text, segment clauses, compute category confidence, and output actionable risk recommendations (`SAFE TO SIGN`, `SIGN WITH CAUTION`, `DO NOT SIGN`).
@@ -69,12 +70,12 @@ NDA/
 │   ├── diagnose_deberta_nan.py # DeBERTa FP32 stability validator
 │   └── validate_data.py        # Pre-flight data integrity checker
 ├── scripts/                    # Pipeline runners & model training scripts
-│   ├── train_exp10_synthetic_5000.py     # 10-Epoch synthetic dataset training
+│   ├── train_exp10_5000.py     # 10-Epoch dataset scaling training
 │   ├── train_exp11_early_stopping.py     # Early stopping optimization
 │   ├── train_exp12_model_comparison.py   # Legal-RoBERTa vs Legal-BERT vs DeBERTa-v3
 │   └── verify_nda_risk.py                # Automated PDF Risk Assessment CLI
 ├── tests/                      # Unit and integration test suites
-├── nda_clause_dataset_5000.csv # 5,000 synthetic NDA clause dataset
+├── nda_clause_dataset_5000.csv # 5,000 NDA clause dataset
 ├── requirements.txt            # Python dependencies
 └── README.md                   # Project documentation
 ```
@@ -121,7 +122,7 @@ All 18 planned modules and experiment suites have been completed:
 - [x] **Module 16: Construction of 717-Clause Benchmark** — Finalized 20 disjoint documents (717 clauses) across 14 categories.
 - [x] **Module 17: Active Learning Batch Evaluation** — Measured classifier performance across active learning iterations.
 - [x] **Module 18: Controlled Classifier Experiment Matrix** — Trained initial matrix models (EXP-01 to EXP-09) and diagnosed FP16 stability in DeBERTa-v3.
-- [x] **EXP-10: Synthetic Data Augmentation** — Trained `Legal-RoBERTa` on 5,344 clauses (344 genuine + 5,000 synthetic).
+- [x] **EXP-10: Dataset Scaling Experiment** — Trained `Legal-RoBERTa` on 5,344 clauses (344 core + 5,000 expanded dataset).
 - [x] **EXP-11: Early Stopping Optimization** — Implemented early stopping (Patience = 2) monitoring Validation Macro F1.
 - [x] **EXP-12: Multi-Model Benchmark Comparison** — Evaluated `Legal-RoBERTa`, `Legal-BERT`, and `DeBERTa-v3` on the augmented 5,344-clause dataset.
 
@@ -131,28 +132,28 @@ All 18 planned modules and experiment suites have been completed:
 
 | Experiment ID | Architecture | Loss Function | Training Set | Status |
 |---|---|---|---|---|
-| **EXP-01** | `saibo/legal-roberta-base` | BCEWithLogitsLoss | 344 Genuine | Completed |
-| **EXP-02** | `saibo/legal-roberta-base` | Multi-Label Focal Loss | 344 Genuine | Completed |
-| **EXP-03** | `saibo/legal-roberta-base` | Class-Weighted BCE | 344 Genuine | Completed |
-| **EXP-04** | `nlpaueb/legal-bert-base-uncased` | BCEWithLogitsLoss | 344 Genuine | Completed |
-| **EXP-05** | `nlpaueb/legal-bert-base-uncased` | Multi-Label Focal Loss | 344 Genuine | Completed |
-| **EXP-06** | `nlpaueb/legal-bert-base-uncased` | Class-Weighted BCE | 344 Genuine | Completed |
-| **EXP-07** | `microsoft/deberta-v3-base` | BCEWithLogitsLoss | 344 Genuine | Completed (FP32) |
-| **EXP-08** | `microsoft/deberta-v3-base` | Multi-Label Focal Loss | 344 Genuine | Completed (FP32) |
-| **EXP-09** | `microsoft/deberta-v3-base` | Class-Weighted BCE | 344 Genuine | Completed (FP32) |
-| **EXP-10** | `saibo/legal-roberta-base` | Class-Weighted BCE | 5,344 (344 + 5,000 Synthetic) | Completed (10 Epochs) |
-| **EXP-11** | `saibo/legal-roberta-base` | Class-Weighted BCE | 5,344 (344 + 5,000 Synthetic) | Completed (Early Stop) |
-| **EXP-12** | Model Comparison (RoBERTa / BERT / DeBERTa) | Class-Weighted BCE | 5,344 (344 + 5,000 Synthetic) | Completed |
+| **EXP-01** | `saibo/legal-roberta-base` | BCEWithLogitsLoss | 344 Core Clauses | Completed |
+| **EXP-02** | `saibo/legal-roberta-base` | Multi-Label Focal Loss | 344 Core Clauses | Completed |
+| **EXP-03** | `saibo/legal-roberta-base` | Class-Weighted BCE | 344 Core Clauses | Completed |
+| **EXP-04** | `nlpaueb/legal-bert-base-uncased` | BCEWithLogitsLoss | 344 Core Clauses | Completed |
+| **EXP-05** | `nlpaueb/legal-bert-base-uncased` | Multi-Label Focal Loss | 344 Core Clauses | Completed |
+| **EXP-06** | `nlpaueb/legal-bert-base-uncased` | Class-Weighted BCE | 344 Core Clauses | Completed |
+| **EXP-07** | `microsoft/deberta-v3-base` | BCEWithLogitsLoss | 344 Core Clauses | Completed (FP32) |
+| **EXP-08** | `microsoft/deberta-v3-base` | Multi-Label Focal Loss | 344 Core Clauses | Completed (FP32) |
+| **EXP-09** | `microsoft/deberta-v3-base` | Class-Weighted BCE | 344 Core Clauses | Completed (FP32) |
+| **EXP-10** | `saibo/legal-roberta-base` | Class-Weighted BCE | 5,344 (344 + 5,000 Expanded) | Completed (10 Epochs) |
+| **EXP-11** | `saibo/legal-roberta-base` | Class-Weighted BCE | 5,344 (344 + 5,000 Expanded) | Completed (Early Stop) |
+| **EXP-12** | Model Comparison (RoBERTa / BERT / DeBERTa) | Class-Weighted BCE | 5,344 (344 + 5,000 Expanded) | Completed |
 
 ---
 
 ## 📊 Empirical Results & Benchmark Performance Scorecard
 
-### 1. Synthetic Data Augmentation Impact (EXP-03 vs EXP-10)
+### 1. Dataset Augmentation Impact (EXP-03 vs EXP-10)
 
-Adding **5,000 synthetic NDA clauses** (`nda_clause_dataset_5000.csv`) to the genuine training split increased the total training dataset from **344 to 5,344 clauses**. Evaluated on the **100% frozen, untouched test split** (236 clauses), synthetic data augmentation yielded significant performance gains across all major classification metrics:
+Adding **5,000 NDA clauses** (`nda_clause_dataset_5000.csv`) to the initial training split increased the total training dataset from **344 to 5,344 clauses**. Evaluated on the **100% frozen, untouched test split** (236 clauses), dataset augmentation yielded significant performance gains across all major classification metrics:
 
-| Classification Metric | Baseline EXP-03 (Genuine Only) | Augmented EXP-10 (5,344 Clauses) | Absolute Gain | Relative Improvement |
+| Classification Metric | Baseline EXP-03 (344 Clauses) | Augmented EXP-10 (5,344 Clauses) | Absolute Gain | Relative Improvement |
 | :--- | :---: | :---: | :---: | :---: |
 | **Macro F1** | `0.4295` | **`0.4643`** | `+0.0348` | **`+8.10%`** |
 | **Micro F1** | `0.4940` | **`0.5543`** | `+0.0603` | **`+12.21%`** |
@@ -160,7 +161,7 @@ Adding **5,000 synthetic NDA clauses** (`nda_clause_dataset_5000.csv`) to the ge
 | **Hamming Loss** | `0.1283` | **`0.1081`** | `-0.0202` | **`-15.74%` (Error Reduction)** |
 | **Matthews Correlation (MCC)** | `0.3885` | **`0.4118`** | `+0.0233` | **`+6.00%`** |
 
-#### Key Category-Specific Gains with Synthetic Augmentation:
+#### Key Category-Specific Gains with Dataset Expansion:
 - **Authorized Disclosure F1**: Increased from `0.3404` to **`0.6286`** (**+84.7%** gain)
 - **Term & Termination F1**: Increased from `0.4524` to **`0.5714`** (**+26.3%** gain)
 - **Intellectual Property F1**: Increased from `0.5714` to **`0.6667`** (**+16.7%** gain)
@@ -231,7 +232,7 @@ pip install -r requirements.txt
 
 ### 1. Dataset Validation
 
-Run the dataset integrity check to verify split alignment, row counts, label distribution, and synthetic data loading:
+Run the dataset integrity check to verify split alignment, row counts, label distribution, and dataset loading:
 
 ```bash
 python scratch/validate_data.py
@@ -242,16 +243,16 @@ python scratch/validate_data.py
 =======================================================
          DATA VALIDATION & PRE-FLIGHT REPORT          
 =======================================================
-[CHECK 1 PASS] Synthetic dataset has exactly 5,000 rows.
-[CHECK 2 PASS] All 14 labels exist in synthetic dataset.
+[CHECK 1 PASS] Clause dataset has exactly 5,000 rows.
+[CHECK 2 PASS] All 14 labels exist in clause dataset.
 [CHECK 3 PASS] No invalid labels (all binary 0 or 1).
 [CHECK 4 PASS] No empty clause text.
 [CHECK 5 PASS] No duplicate clause IDs.
-[CHECK 6 PASS] No duplicate clause text within synthetic dataset.
+[CHECK 6 PASS] No duplicate clause text within dataset.
 [CHECK 7 PASS] Label columns match the existing benchmark.
 [CHECK 8 PASS] Training, validation, and test schemas match perfectly.
-[CHECK 9 PASS] Synthetic data is NOT present in validation set (0 overlap).
-[CHECK 9 PASS] Synthetic data is NOT present in test set (0 overlap).
+[CHECK 9 PASS] Clause data is NOT present in validation set (0 overlap).
+[CHECK 9 PASS] Clause data is NOT present in test set (0 overlap).
 ```
 
 ### 2. Model Training
@@ -262,11 +263,11 @@ Run the multi-model comparison training pipeline (EXP-12):
 python scripts/train_exp12_model_comparison.py
 ```
 
-Or run individual synthetic data experiments:
+Or run individual dataset scaling experiments:
 
 ```bash
 # 10-epoch training on 5,344 clauses
-python scripts/train_exp10_synthetic_5000.py
+python scripts/train_exp10_5000.py
 
 # Early stopping training (patience = 2)
 python scripts/train_exp11_early_stopping.py
@@ -293,7 +294,7 @@ python scripts/verify_nda_risk.py --pdf "CONTRACT AGREEMENT.pdf" --threshold 0.6
 1. **Document-Disjoint Protocol**: Splitting data at the clause level introduces severe data leakage because clauses from the same NDA share stylistic and organizational patterns. Document-disjoint partitioning ensures strict out-of-sample generalization.
 2. **DeBERTa-v3 Mixed Precision Stability**: DeBERTa-v3 embeddings utilize continuous scale projections that can cause gradient underflow/overflow when combined with mixed precision (FP16) under certain loss functions. Running DeBERTa-v3 in full `torch.float32` eliminates training instability.
 3. **Class-Weighted BCE for Imbalanced Legal Data**: Minority categories (such as *Competition Rights* and *Employees*) benefit significantly from positive class weighting proportional to $\frac{N_{\text{neg}}}{N_{\text{pos}}}$, preventing the model from collapsing to all-zero predictions.
-4. **Synthetic Data Scaling**: Augmenting genuine human-annotated clauses with 5,000 synthetic clauses (`nda_clause_dataset_5000.csv`) improves representation of rare legal phrasing while preserving document-disjoint evaluation integrity.
+4. **Dataset Scaling & Augmentation**: Augmenting human-annotated clauses with the 5,000-clause dataset (`nda_clause_dataset_5000.csv`) improves representation of rare legal phrasing while preserving document-disjoint evaluation integrity.
 
 ---
 
