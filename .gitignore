@@ -29,3 +29,10 @@ ENV/
 *.log
 .DS_Store
 Thumbs.db
+
+# Application runtime storage and database
+/storage/
+*.db
+*.sqlite
+*.sqlite3
+

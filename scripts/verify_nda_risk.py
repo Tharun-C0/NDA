@@ -4,15 +4,18 @@ scripts/verify_nda_risk.py
 Terminal-Based NDA PDF Risk Assessment & Signing Verification Tool.
 
 Analyzes an input PDF contract, segments it into legal clauses, performs multi-label
-clause classification using fine-tuned transformer model checkpoints (EXP-03 @ threshold 0.60),
+clause classification using fine-tuned transformer model checkpoints,
 calculates a cumulative Document Risk Index, and provides a clear recommendation:
 - SAFE TO SIGN (Low Risk)
 - SIGN WITH CAUTION (Medium Risk)
 - DO NOT SIGN (High Risk / Requires Legal Revision)
 
 Usage:
+    # Legacy mode (EXP-03 checkpoint):
     python scripts/verify_nda_risk.py --pdf path/to/document.pdf
-    python scripts/verify_nda_risk.py --pdf external_data/kleister-nda/documents/00a12f38d388ae.pdf --threshold 0.60
+
+    # Parity mode (Reuses backend services with legal_roberta):
+    python scripts/verify_nda_risk.py --pdf path/to/document.pdf --model_choice legal_roberta --parity
 """
 
 import argparse
@@ -62,7 +65,7 @@ APPROVED_CATEGORIES = [
     "Additional Information",
 ]
 
-# Risk weights for calculating Document Risk Index (0-100%)
+# Risk weights for legacy calculating Document Risk Index (0-100%)
 CATEGORY_RISK_WEIGHTS = {
     "Liability for Damages": 35,
     "Competition Rights": 35,
@@ -92,7 +95,7 @@ RISK_TIERS = {
 
 
 def load_model_and_tokenizer(checkpoint_path: Path):
-    """Load PyTorch sequence classifier & tokenizer from checkpoint."""
+    """Load PyTorch sequence classifier & tokenizer from checkpoint (Legacy EXP-03 mode)."""
     if not checkpoint_path.exists():
         # Fallback search for any existing checkpoint
         ckpt_root = ROOT / "data" / "classification" / "module18_results" / "checkpoints"
@@ -110,7 +113,7 @@ def load_model_and_tokenizer(checkpoint_path: Path):
 
 
 def extract_pdf_clauses(pdf_path: Path) -> Tuple[str, List[str]]:
-    """Extract full text from PDF and segment into clause text strings."""
+    """Extract full text from PDF and segment into clause text strings (Legacy mode)."""
     doc = fitz.open(pdf_path)
     full_text_pages = []
     for page in doc:
@@ -136,10 +139,10 @@ def extract_pdf_clauses(pdf_path: Path) -> Tuple[str, List[str]]:
     return full_text, clauses
 
 
-def analyze_document(pdf_path: Path, checkpoint_path: Path, threshold: float = 0.60):
-    """Run full NDA risk assessment pipeline on input PDF."""
+def analyze_document_legacy(pdf_path: Path, checkpoint_path: Path, threshold: float = 0.60):
+    """Run legacy EXP-03 NDA risk assessment pipeline on input PDF."""
     print(f"\n================================================================================")
-    print(f"                    NDA AUTOMATED RISK ASSESSMENT REPORT                        ")
+    print(f"            NDA AUTOMATED RISK ASSESSMENT REPORT (LEGACY EXP-03 MODE)          ")
     print(f"================================================================================")
     print(f"  Input File  : {pdf_path.name}")
     print(f"  Path        : {pdf_path}")
@@ -255,28 +258,72 @@ def analyze_document(pdf_path: Path, checkpoint_path: Path, threshold: float = 0
     print(f"  Advice: {advice}")
     print(f"================================================================================\n")
 
-    # Print Flagged Clauses Breakdown
-    print(f"--------------------------------------------------------------------------------")
-    print(f"                       FLAGGED CLAUSES & RISK DETAILS                           ")
-    print(f"--------------------------------------------------------------------------------")
 
-    flagged_count = 0
-    for item in clause_results:
-        if item["predictions"]:
-            flagged_count += 1
-            print(f"\n[Clause #{item['index']}] Risk Level: {item['risk_level']}")
-            snippet = item['text'][:150].replace("\n", " ") + ("..." if len(item['text']) > 150 else "")
-            print(f'  Snippet: "{snippet}"')
-            print("  Detected Categories:")
-            for cat_name, prob in item["predictions"]:
-                tier = RISK_TIERS.get(cat_name, "LOW")
-                print(f"    - {cat_name:<40} | Conf: {prob*100:5.1f}% | Risk Tier: {tier}")
-
-    if flagged_count == 0:
-        print("\n  [+] No high-risk categories exceeded the classification threshold.")
+def analyze_document_parity(pdf_path: Path, model_choice: str = "legal_roberta", threshold: float = 0.60):
+    """Run backend-parity NDA risk assessment pipeline re-using backend services."""
+    from backend.app.services.pdf_service import extract_pdf_content
+    from backend.app.services.segmentation_service import segment_nda_text
+    from backend.app.services.model_service import predict_clause_categories
+    from backend.app.services.risk_service import evaluate_document_risk
 
     print(f"\n================================================================================")
-    print(f"                        END OF RISK ASSESSMENT REPORT                           ")
+    print(f"            NDA AUTOMATED RISK ASSESSMENT REPORT (PARITY MODE)                  ")
+    print(f"================================================================================")
+    print(f"  Input File  : {pdf_path.name}")
+    print(f"  Path        : {pdf_path}")
+    print(f"  Model Choice: {model_choice}")
+    print(f"  Threshold   : {threshold:.2f}")
+
+    if not pdf_path.exists():
+        print(f"\n[X] Error: PDF file not found at path: {pdf_path}")
+        return
+
+    with open(pdf_path, "rb") as f:
+        pdf_bytes = f.read()
+
+    text, pdf_result = extract_pdf_content(content=pdf_bytes, filename=pdf_path.name)
+    segmented_doc = segment_nda_text(text=text, document_id=pdf_path.stem)
+    clause_texts = [c.text for c in segmented_doc.clauses]
+
+    print(f"  Page Count  : {pdf_result.page_count}")
+    print(f"  Extracted   : {len(clause_texts)} total clauses")
+    print(f"--------------------------------------------------------------------------------")
+
+    print("\nRunning inference using backend model service...")
+    probabilities = predict_clause_categories(
+        clause_texts=clause_texts,
+        model_key=model_choice,
+        batch_size=16,
+        max_length=256
+    )
+
+    risk_report = evaluate_document_risk(
+        clauses=segmented_doc.clauses,
+        probabilities=probabilities,
+        threshold=threshold
+    )
+
+    high_risk_count = risk_report["high_risk_clause_count"]
+    medium_risk_count = risk_report["medium_risk_clause_count"]
+    total_clauses = len(risk_report["clauses"])
+    low_risk_count = max(0, total_clauses - (high_risk_count + medium_risk_count))
+
+    risk_label = risk_report["risk_status"]
+    recommendation = risk_report["recommendation"]
+    advice = risk_report["advice"]
+    risk_index = risk_report["overall_risk_index"]
+
+    print(f"\n================================================================================")
+    print(f"                            FINAL RISK SUMMARY                                  ")
+    print(f"================================================================================")
+    print(f"  High-Risk Clauses Found  : {high_risk_count}")
+    print(f"  Medium-Risk Clauses Found: {medium_risk_count}")
+    print(f"  Low-Risk Clauses Found   : {low_risk_count}")
+    print(f"  Document Risk Index      : {risk_index:.1f}%")
+    print(f"  Risk Status              : {risk_label}")
+    print(f"--------------------------------------------------------------------------------")
+    print(f"  >>> DECISION: {recommendation} <<<")
+    print(f"  Advice: {advice}")
     print(f"================================================================================\n")
 
 
@@ -287,7 +334,14 @@ def main():
         "--checkpoint",
         type=str,
         default=str(ROOT / "data" / "classification" / "module18_results" / "checkpoints" / "EXP-03"),
-        help="Path to fine-tuned transformer model checkpoint directory"
+        help="Path to fine-tuned transformer model checkpoint directory (Legacy mode)"
+    )
+    parser.add_argument(
+        "--model_choice",
+        type=str,
+        default="exp03",
+        choices=["legal_roberta", "legal_bert", "deberta_v3", "exp03"],
+        help="Model choice key for backend parity execution (default: exp03)"
     )
     parser.add_argument(
         "--threshold",
@@ -295,12 +349,22 @@ def main():
         default=0.60,
         help="Probability threshold for multi-label classification (default: 0.60)"
     )
+    parser.add_argument(
+        "--parity",
+        action="store_true",
+        help="Run terminal evaluation in full backend parity mode (re-using backend services)"
+    )
     args = parser.parse_args()
 
     pdf_path = Path(args.pdf).resolve()
-    checkpoint_path = Path(args.checkpoint).resolve()
 
-    analyze_document(pdf_path, checkpoint_path, threshold=args.threshold)
+    if args.parity:
+        # Determine model choice
+        m_choice = args.model_choice if args.model_choice != "exp03" else "legal_roberta"
+        analyze_document_parity(pdf_path, model_choice=m_choice, threshold=args.threshold)
+    else:
+        checkpoint_path = Path(args.checkpoint).resolve()
+        analyze_document_legacy(pdf_path, checkpoint_path, threshold=args.threshold)
 
 
 if __name__ == "__main__":
