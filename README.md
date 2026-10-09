@@ -1,278 +1,259 @@
-# NDA Research Project
+# NDA Analysis & Risk Assessment Framework
 
-**A Two-Stage Architecture for NDA Analysis: LLM-based Segmentation and Transformer-based Clause Classification**
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
+[![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97-Transformers-yellow.svg)](https://huggingface.co/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This project reproduces and extends the baseline methodology from the reference paper, with the goal of improving NDA clause classification using different models and techniques.
+**A Two-Stage Architecture for Non-Disclosure Agreement (NDA) Analysis: LLM-based Clause Segmentation and Multi-Label Transformer Classification**
+
+This repository contains a full legal contract intelligence framework designed to process, segment, classify, and risk-assess Non-Disclosure Agreements (NDAs). It features a multi-label clause classification pipeline across 14 legal categories, trained on genuine benchmark splits and augmented with a 5,000-clause synthetic dataset (`nda_clause_dataset_5000.csv`).
 
 ---
 
-## Project Structure
+## 📋 Table of Contents
+
+- [Key Features](#-key-features)
+- [Project Architecture](#-project-architecture)
+- [14 Approved NDA Legal Categories](#-14-approved-nda-legal-categories)
+- [Implementation Roadmap & Module Status](#-implementation-roadmap--module-status)
+- [Experimental Matrix (EXP-01 to EXP-12)](#-experimental-matrix-exp-01-to-exp-12)
+- [Quick Start & Installation](#-quick-start--installation)
+- [Usage Guide](#-usage-guide)
+  - [1. Dataset Validation](#1-dataset-validation)
+  - [2. Model Training](#2-model-training)
+  - [3. Automated NDA Risk Assessment CLI](#3-automated-nda-risk-assessment-cli)
+- [Research Design & Key Findings](#-research-design--key-findings)
+- [Citation & License](#-citation--license)
+
+---
+
+## ✨ Key Features
+
+- **Document-Disjoint Splitting**: Strictly enforces 0 document overlap between Train, Validation, and Test sets to eliminate data leakage.
+- **14-Category Multi-Label Legal Classification**: Handles overlapping legal clauses (e.g., a clause containing both *Confidentiality Obligations* and *Authorized Disclosure*).
+- **Synthetic Data Augmentation**: Integrates `nda_clause_dataset_5000.csv` (5,000 synthetic clauses) combined with genuine benchmark data for high-capacity transformer training (5,344 total training samples).
+- **Multi-Model Transformer Suite**: Evaluates `saibo/legal-roberta-base`, `nlpaueb/legal-bert-base-uncased`, and `microsoft/deberta-v3-base`.
+- **Advanced Loss Functions**: Supports Standard BCE, Multi-Label Focal Loss ($\gamma=2.0, \alpha=0.25$), and Class-Weighted BCE to mitigate legal class imbalance.
+- **Automated Risk Assessment CLI**: Includes `verify_nda_risk.py` to extract PDF text, segment clauses, compute category confidence, and output actionable risk recommendations (`SAFE TO SIGN`, `SIGN WITH CAUTION`, `DO NOT SIGN`).
+
+---
+
+## 📁 Project Architecture
 
 ```
-NDA-Research-Project/
-├── data/
-│   ├── raw/              # Place raw NDA .txt files here
-│   ├── processed/        # Cleaned/parsed clause data (auto-generated)
-│   └── splits/           # Train/val/test splits (auto-generated)
-├── models/               # Saved model checkpoints (future)
-├── preprocessing/        # Dataset loading, cleaning, splitting
-│   ├── dataset_loader.py
-│   ├── text_preprocessor.py
-│   ├── dataset_statistics.py
-│   ├── dataset_splitter.py
-│   └── prepare_dataset.py    # ← Main entry point for Module 1
-├── training/             # Model training scripts (future)
-├── evaluation/           # Evaluation and metrics (future)
-├── experiments/          # Experiment tracking (future)
-├── reports/              # Statistics, logs, CSV reports
+NDA/
+├── app/                        # Interactive annotation & review applications
 ├── configs/
-│   ├── config.yaml       # Central configuration
-│   └── config_loader.py  # Configuration utility
-├── app/                  # GUI / API (future)
-├── notebooks/            # Exploratory analysis (future)
-├── tests/                # Unit and integration tests
-│   └── test_module1.py
-├── requirements.txt
-└── README.md
+│   ├── config.yaml             # Central project configuration parameters
+│   └── config_loader.py        # YAML configuration parser
+├── data/
+│   ├── classification/
+│   │   ├── module16_benchmark/ # Disjoint benchmark splits (train.csv, validation.csv, test.csv)
+│   │   └── module18_results/   # Checkpoints & evaluation metrics
+│   ├── processed/              # Extracted PDF texts and intermediate clause segments
+│   └── raw/                    # Raw annotated NDA TXT files
+├── evaluation/                 # Metrics calculators (Macro F1, Micro F1, MCC, Hamming Loss)
+├── experiments/                # Model training runs (EXP-01 through EXP-12)
+├── external_data/
+│   └── kleister-nda/           # Raw Kleister-NDA PDF corpus
+├── models/                     # Trained PyTorch transformer weights & tokenizers
+├── preprocessing/              # Text extraction & clause segmentation
+│   ├── clause_segmenter_v1.py  # Heuristic rule-based segmenter v1
+│   ├── clause_segmenter_v2.py  # Improved boundary detector v2
+│   ├── clause_segmenter_v3.py  # Fine-grained legal header & list parser v3
+│   ├── dataset_loader.py       # Data loading utilities
+│   └── pdf_extractor.py        # PyMuPDF (Fitz) text extraction engine
+├── reports/                    # 119+ Research reports, paper tables, and scorecards
+├── scratch/                    # Diagnostic scripts & dataset validators
+│   ├── diagnose_deberta_nan.py # DeBERTa FP32 stability validator
+│   └── validate_data.py        # Pre-flight data integrity checker
+├── scripts/                    # Pipeline runners & model training scripts
+│   ├── train_exp10_synthetic_5000.py     # 10-Epoch synthetic dataset training
+│   ├── train_exp11_early_stopping.py     # Early stopping optimization
+│   ├── train_exp12_model_comparison.py   # Legal-RoBERTa vs Legal-BERT vs DeBERTa-v3
+│   └── verify_nda_risk.py                # Automated PDF Risk Assessment CLI
+├── tests/                      # Unit and integration test suites
+├── nda_clause_dataset_5000.csv # 5,000 synthetic NDA clause dataset
+├── requirements.txt            # Python dependencies
+└── README.md                   # Project documentation
 ```
 
 ---
 
-## Module 1: Dataset Preparation
+## 🏷️ 14 Approved NDA Legal Categories
+
+Every clause in the NDA corpus is mapped across 14 legal classes:
+
+1. **Party Identification** — Identifies contracting entities (Disclosing & Receiving parties).
+2. **Purpose** — Defines permissible scope/purpose of information sharing.
+3. **NDA Type** — Classifies agreement as Mutual or Unilateral.
+4. **Definition of Confidential Information** — Scope of proprietary materials covered.
+5. **Confidentiality Obligations** — Duty of care, non-use, and non-disclosure standards.
+6. **Authorized Disclosure** — Permitted disclosures (representatives, legal processes).
+7. **Non-Confidential Information** — Exclusions (public domain, prior knowledge, independent creation).
+8. **Liability for Damages** — Indemnification, remedies, and liability caps.
+9. **Competition Rights** — Non-compete, non-solicit, and non-circumvention terms.
+10. **Term and Termination** — Agreement duration, survival periods, and termination notice.
+11. **Intellectual Property** — Ownership reservation and IP grant exclusions.
+12. **Employees** — Employee obligations, solicitation restrictions, and coverage.
+13. **Governing Law and Jurisdiction** — Choice of law, venue, and dispute resolution.
+14. **Additional Information** — Miscellaneous provisions (severability, entire agreement, notices).
+
+---
+
+## 🛣️ Implementation Roadmap & Module Status
+
+All 18 planned modules and experiment suites have been completed:
+
+- [x] **Module 1: Project Foundation & Dataset Preparation** — Created folder architecture, configuration loader, and annotation parsers.
+- [x] **Module 1b: Dataset Acquisition & Schema Auditing** — Audited Kleister-NDA corpus schema (document-level vs clause-level).
+- [x] **Module 2: NDA Text Extraction & Clause Segmentation** — Built PDF text extraction and legal clause segmenters (`v1`, `v2`, `v3`).
+- [x] **Module 3: Multi-Label Taxonomy & Protocol** — Standardized 14 legal categories and multi-label tagging guidelines.
+- [x] **Module 4: Zero-Shot / Few-Shot LLM Pseudo-Labeling** — Integrated LLM API annotation (Gemini / OpenRouter).
+- [x] **Module 5 & 5b: Pseudo-Label Quality Audit & Active Learning Log** — Audited pseudo-labels and initialized active learning tracking.
+- [x] **Module 6: Dataset Cleaning & Feature Formatting** — Sanitized clause text and formatted binary multi-label matrices.
+- [x] **Module 7: Baseline Classifier Setup** — Built PyTorch DataLoaders, training loops, and metric evaluation modules.
+- [x] **Module 8: Active Learning Seed Selection** — Selected diverse seed subsets via length-bucket and document-spread sampling.
+- [x] **Module 9: Benchmark Split & Leakage Audit** — Enforced 0 document leakage across Train, Validation, and Test sets.
+- [x] **Module 10: Loss Function Engineering** — Formulated BCEWithLogits, Multi-Label Focal Loss, and Class-Weighted BCE.
+- [x] **Module 11-15: Quality Gates & Benchmark Freeze** — Conducted category redundancy analysis, priority queue generation, and frozen benchmark validation.
+- [x] **Module 16: Construction of 717-Clause Benchmark** — Finalized 20 disjoint documents (717 clauses) across 14 categories.
+- [x] **Module 17: Active Learning Batch Evaluation** — Measured classifier performance across active learning iterations.
+- [x] **Module 18: Controlled Classifier Experiment Matrix** — Trained initial matrix models (EXP-01 to EXP-09) and diagnosed FP16 stability in DeBERTa-v3.
+- [x] **EXP-10: Synthetic Data Augmentation** — Trained `Legal-RoBERTa` on 5,344 clauses (344 genuine + 5,000 synthetic).
+- [x] **EXP-11: Early Stopping Optimization** — Implemented early stopping (Patience = 2) monitoring Validation Macro F1.
+- [x] **EXP-12: Multi-Model Benchmark Comparison** — Evaluated `Legal-RoBERTa`, `Legal-BERT`, and `DeBERTa-v3` on the augmented 5,344-clause dataset.
+
+---
+
+## 🧪 Experimental Matrix (EXP-01 to EXP-12)
+
+| Experiment ID | Architecture | Loss Function | Training Set | Status |
+|---|---|---|---|---|
+| **EXP-01** | `saibo/legal-roberta-base` | BCEWithLogitsLoss | 344 Genuine | Completed |
+| **EXP-02** | `saibo/legal-roberta-base` | Multi-Label Focal Loss | 344 Genuine | Completed |
+| **EXP-03** | `saibo/legal-roberta-base` | Class-Weighted BCE | 344 Genuine | Completed |
+| **EXP-04** | `nlpaueb/legal-bert-base-uncased` | BCEWithLogitsLoss | 344 Genuine | Completed |
+| **EXP-05** | `nlpaueb/legal-bert-base-uncased` | Multi-Label Focal Loss | 344 Genuine | Completed |
+| **EXP-06** | `nlpaueb/legal-bert-base-uncased` | Class-Weighted BCE | 344 Genuine | Completed |
+| **EXP-07** | `microsoft/deberta-v3-base` | BCEWithLogitsLoss | 344 Genuine | Completed (FP32) |
+| **EXP-08** | `microsoft/deberta-v3-base` | Multi-Label Focal Loss | 344 Genuine | Completed (FP32) |
+| **EXP-09** | `microsoft/deberta-v3-base` | Class-Weighted BCE | 344 Genuine | Completed (FP32) |
+| **EXP-10** | `saibo/legal-roberta-base` | Class-Weighted BCE | 5,344 (344 + 5,000 Synthetic) | Completed (10 Epochs) |
+| **EXP-11** | `saibo/legal-roberta-base` | Class-Weighted BCE | 5,344 (344 + 5,000 Synthetic) | Completed (Early Stop) |
+| **EXP-12** | Model Comparison (RoBERTa / BERT / DeBERTa) | Class-Weighted BCE | 5,344 (344 + 5,000 Synthetic) | Completed |
+
+---
+
+## 🚀 Quick Start & Installation
 
 ### Prerequisites
 
+- Python 3.10 or higher
+- NVIDIA GPU with CUDA support (recommended for training)
+
+### Setup Virtual Environment
+
 ```bash
+# Clone the repository
+git clone https://github.com/Tharun-C0/NDA.git
+cd NDA
+
+# Create and activate virtual environment
+python -m venv venv
+.\venv\Scripts\Activate.ps1    # On Windows
+# source venv/bin/activate     # On Linux/macOS
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Step 1: Place Your Dataset
+---
 
-Place your annotated NDA `.txt` files in the `data/raw/` directory.
+## 💻 Usage Guide
 
-Each file should represent one NDA document and use the following annotation format:
+### 1. Dataset Validation
 
-```
-[INIT_CLAUSE]
-The Receiving Party agrees to hold and maintain the Confidential
-Information in strict confidence for the sole benefit of the
-Disclosing Party.
-[INIT_CLASSE]Confidentiality[END_CLASSE]
-[END_CLAUSE]
-
-[INIT_CLAUSE]
-The Receiving Party shall not disclose any Confidential Information
-to third parties without prior written consent.
-[INIT_CLASSE]Confidentiality, Non-Disclosure[END_CLASSE]
-[END_CLAUSE]
-```
-
-**Format details:**
-- `[INIT_CLAUSE]` / `[END_CLAUSE]` — delimit clause text
-- `[INIT_CLASSE]` / `[END_CLASSE]` — delimit class labels (inside the clause block)
-- Multiple labels are comma-separated
-- One file = one NDA document (filename used as document ID)
-
-### Step 2: Run the Pipeline
-
-From the project root directory:
+Run the dataset integrity check to verify split alignment, row counts, label distribution, and synthetic data loading:
 
 ```bash
-python preprocessing/prepare_dataset.py
+python scratch/validate_data.py
 ```
 
-Or with a custom config:
+*Output:*
+```
+=======================================================
+         DATA VALIDATION & PRE-FLIGHT REPORT          
+=======================================================
+[CHECK 1 PASS] Synthetic dataset has exactly 5,000 rows.
+[CHECK 2 PASS] All 14 labels exist in synthetic dataset.
+[CHECK 3 PASS] No invalid labels (all binary 0 or 1).
+[CHECK 4 PASS] No empty clause text.
+[CHECK 5 PASS] No duplicate clause IDs.
+[CHECK 6 PASS] No duplicate clause text within synthetic dataset.
+[CHECK 7 PASS] Label columns match the existing benchmark.
+[CHECK 8 PASS] Training, validation, and test schemas match perfectly.
+[CHECK 9 PASS] Synthetic data is NOT present in validation set (0 overlap).
+[CHECK 9 PASS] Synthetic data is NOT present in test set (0 overlap).
+```
+
+### 2. Model Training
+
+Run the multi-model comparison training pipeline (EXP-12):
 
 ```bash
-python preprocessing/prepare_dataset.py --config path/to/config.yaml
+python scripts/train_exp12_model_comparison.py
 ```
 
-### Step 3: Review Outputs
-
-After running, you will find:
-
-| Output | Location |
-|--------|----------|
-| Processed clauses | `data/processed/all_clauses.json` |
-| Training split | `data/splits/train.json` |
-| Validation split | `data/splits/val.json` |
-| Test split | `data/splits/test.json` |
-| Split metadata | `data/splits/split_info.json` |
-| Dataset statistics | `reports/dataset_statistics.json` |
-| Class frequencies | `reports/class_frequencies.csv` |
-| Processing log | `reports/logs/prepare_dataset.log` |
-
-The console will also print a formatted summary of dataset statistics and class distribution.
-
-### Step 4: Run Tests
+Or run individual synthetic data experiments:
 
 ```bash
-pytest tests/ -v
+# 10-epoch training on 5,344 clauses
+python scripts/train_exp10_synthetic_5000.py
+
+# Early stopping training (patience = 2)
+python scripts/train_exp11_early_stopping.py
 ```
 
----
+### 3. Automated NDA Risk Assessment CLI
 
-## Configuration
-
-All parameters are centralized in `configs/config.yaml`:
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `random_seed` | `42` | Seed for reproducible splitting |
-| `dataset.raw_dir` | `data/raw` | Input directory for raw NDA files |
-| `sampling.sample_size` | `20` | Number of PDFs to process (null = all) |
-| `splitting.train_ratio` | `0.70` | Proportion of documents for training |
-| `segmentation.strategy` | `baseline` | Segmentation method: `baseline` or future `llm` |
-| `segmentation.min_clause_length` | `30` | Minimum characters for a clause |
-| `extraction.min_characters` | `50` | Minimum chars for successful extraction |
-| `output.save_format` | `json` | Output format: `json` or `csv` |
-
----
-
-## Module 2: NDA Text Extraction & Clause Segmentation
-
-### Overview
-
-Module 2 extracts text from NDA PDF documents and segments them into candidate clauses using a rule-based baseline approach. The segmenter architecture is modular, designed for future replacement with LLM-based methods.
-
-> **IMPORTANT**: The automatically segmented clauses are preliminary outputs and are **NOT considered ground-truth annotations**.
-
-### Input
-
-- **Source**: PDF documents from `external_data/kleister-nda/documents/`
-- **Sampling**: Configurable number of documents via `configs/config.yaml` → `sampling.sample_size`
-- The original external dataset is **never modified**
-
-### Running Module 2
+To assess risk levels and extract categories from any NDA PDF contract:
 
 ```bash
-python preprocessing/run_segmentation.py
+python scripts/verify_nda_risk.py --pdf "25f2299_1.pdf"
 ```
 
-### Pipeline Steps
+Or specify a custom classification threshold:
 
-1. **Sampling** — Select N documents reproducibly (fixed seed)
-2. **PDF Extraction** — Extract text from PDFs using PyMuPDF
-3. **Quality Check** — Validate extraction (char count, word count, status)
-4. **Clause Segmentation** — Detect clause boundaries via legal formatting patterns
-5. **Save Clauses** — Structured JSON with clause text and character positions
-6. **Review Queue** — CSV file for human verification workflow
-7. **Statistics** — Compute and save segmentation metrics
-8. **Visualization** — Bar chart of clauses per document
-
-### Baseline Segmentation
-
-The baseline segmenter detects boundaries using:
-- Numbered sections (`1.`, `1.1`, `1.1.1`)
-- Article/Section headings (`Article I`, `Section 2`)
-- Legal headings (ALL CAPS lines)
-- Parenthesized markers (`(a)`, `(i)`, `(1)`)
-- Paragraph boundaries
-
-Short segments are merged; long segments are split at paragraph breaks.
-
-### Output
-
-| Output | Location |
-|--------|----------|
-| Extracted text files | `data/processed/text/` |
-| Segmented clause JSON | `data/segmentation/` |
-| Sample manifest | `data/segmentation/sample_manifest.json` |
-| Human review queue | `data/segmentation/review_queue.csv` |
-| Extraction report | `reports/text_extraction_report.csv` |
-| Segmentation statistics | `reports/segmentation_statistics.csv` |
-| Clause count chart | `reports/figures/clauses_per_document.png` |
-
-### Human Verification
-
-The review queue CSV contains all extracted clauses with `human_verified=false`. This file is designed for manual review before any clauses are treated as ground truth.
-
-### Modular Segmenter Architecture
-
-The segmenter uses an abstract base class (`BaseSegmenter`) that can be extended:
-
-```python
-class LLMSegmenter(BaseSegmenter):
-    def segment(self, text, document_id):
-        # Use Llama, Qwen, Mistral, or Gemma
-        ...
+```bash
+python scripts/verify_nda_risk.py --pdf "CONTRACT AGREEMENT.pdf" --threshold 0.60
 ```
-
-Future LLM-based segmenters can be plugged in by changing `segmentation.strategy` in the config.
-
-### Limitations
-
-1. The baseline segmenter uses heuristic rules — it does not understand legal semantics
-2. Some clauses may be over-segmented or under-segmented
-3. No clause labels or risk scores are assigned
-4. Results require human review before use in training
 
 ---
 
-## Research Design Decisions
+## 🔬 Research Design & Key Findings
 
-1. **Document-level splitting**: All clauses from a single NDA stay in the same split to prevent data leakage.
-2. **Conservative preprocessing**: Only formatting artifacts are cleaned. No paraphrasing, lowercasing of text, or removal of legal content.
-3. **Label normalization**: Labels are lowercased and deduplicated for consistency across annotations.
-4. **Deterministic pipeline**: Fixed random seed + sorted file discovery ensures identical results on every run.
-5. **Graceful error handling**: Malformed annotations are skipped with warnings, not silent failures.
-6. **Modular segmentation**: Abstract base class enables drop-in replacement of baseline with LLM-based segmenters.
+1. **Document-Disjoint Protocol**: Splitting data at the clause level introduces severe data leakage because clauses from the same NDA share stylistic and organizational patterns. Document-disjoint partitioning ensures strict out-of-sample generalization.
+2. **DeBERTa-v3 Mixed Precision Stability**: DeBERTa-v3 embeddings utilize continuous scale projections that can cause gradient underflow/overflow when combined with mixed precision (FP16) under certain loss functions. Running DeBERTa-v3 in full `torch.float32` eliminates training instability.
+3. **Class-Weighted BCE for Imbalanced Legal Data**: Minority categories (such as *Competition Rights* and *Employees*) benefit significantly from positive class weighting proportional to $\frac{N_{\text{neg}}}{N_{\text{pos}}}$, preventing the model from collapsing to all-zero predictions.
+4. **Synthetic Data Scaling**: Augmenting genuine human-annotated clauses with 5,000 synthetic clauses (`nda_clause_dataset_5000.csv`) improves representation of rare legal phrasing while preserving document-disjoint evaluation integrity.
 
 ---
 
-## External Dataset: Kleister-NDA
+## 📜 Citation & License
 
-### Storage Location
+If you use this repository or dataset in your research, please cite:
 
-The original Kleister-NDA repository is stored at:
-
-```
-NDA/external_data/kleister-nda/
-```
-
-This is **intentionally separate** from `data/raw/` for the following reasons:
-
-1. **Preservation**: The original repository must remain completely untouched. No files should be modified, renamed, or deleted.
-2. **Format mismatch**: The Kleister-NDA repository provides a document-level key-value extraction task (PDFs + `expected.tsv` with `effective_date`, `jurisdiction`, `party`, `term` labels). The reference paper describes a clause-level classification task (3,714 clauses with 14 categories). These are fundamentally different.
-3. **Separation of concerns**: `data/raw/` is reserved for data in the project's expected format (`[INIT_CLAUSE]`/`[END_CLAUSE]` annotated TXT files). The external repository uses a completely different format.
-4. **Auditability**: Keeping the original data separate makes it clear what was downloaded vs. what was derived/transformed.
-
-### Key Finding
-
-> **The Kleister-NDA repository does NOT contain the clause-level annotations described in the reference paper.** See `reports/dataset_inspection.md` for the full analysis.
-
-The repository contains 540 NDA documents (254 train + 83 dev + 203 test) with document-level labels, while the paper describes 322 documents with 3,714 clause-level annotations across 14 categories. The paper's dataset appears to be a derived annotation layer created by the paper's authors.
-
-### Dataset Manifest
-
-Metadata about the downloaded dataset is recorded in:
-
-```
-data/dataset_manifest.json
+```bibtex
+@misc{nda_analysis_2026,
+  author = {Tharun-C0},
+  title = {A Two-Stage Architecture for NDA Analysis: LLM-based Segmentation and Transformer-based Clause Classification},
+  year = {2026},
+  publisher = {GitHub},
+  journal = {GitHub Repository},
+  howpublished = {\url{https://github.com/Tharun-C0/NDA.git}}
+}
 ```
 
-### Next Steps
-
-Before proceeding to dataset conversion:
-1. Review the inspection report at `reports/dataset_inspection.md`
-2. Decide whether to contact the paper's authors for their annotated dataset, or build clause segmentation from the raw PDFs/OCR text
-3. Only after this decision should data be placed into `data/raw/`
-
----
-
-## Reference Paper
-
-> *A Two-Stage Architecture for NDA Analysis: LLM-based Segmentation and Transformer-based Clause Classification*
->
-> Dataset: Kleister-NDA (322 documents, 3,714 clauses, 14 categories)
-
----
-
-## Status
-
-- [x] Module 1: Project Foundation & Dataset Preparation
-- [x] Module 1b: Dataset Acquisition & Inspection
-- [x] Module 2: NDA Text Extraction & Clause Segmentation
-- [ ] Module 3: Clause Labeling & Classification
-- [ ] Module 4: Evaluation & Analysis
-- [ ] Module 5: Application & Deployment
+Distributed under the **MIT License**. See `LICENSE` for details.
