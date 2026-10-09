@@ -146,6 +146,62 @@ All 18 planned modules and experiment suites have been completed:
 
 ---
 
+## 📊 Empirical Results & Benchmark Performance Scorecard
+
+### 1. Synthetic Data Augmentation Impact (EXP-03 vs EXP-10)
+
+Adding **5,000 synthetic NDA clauses** (`nda_clause_dataset_5000.csv`) to the genuine training split increased the total training dataset from **344 to 5,344 clauses**. Evaluated on the **100% frozen, untouched test split** (236 clauses), synthetic data augmentation yielded significant performance gains across all major classification metrics:
+
+| Classification Metric | Baseline EXP-03 (Genuine Only) | Augmented EXP-10 (5,344 Clauses) | Absolute Gain | Relative Improvement |
+| :--- | :---: | :---: | :---: | :---: |
+| **Macro F1** | `0.4295` | **`0.4643`** | `+0.0348` | **`+8.10%`** |
+| **Micro F1** | `0.4940` | **`0.5543`** | `+0.0603` | **`+12.21%`** |
+| **Weighted F1** | `0.5151` | **`0.5568`** | `+0.0417` | **`+8.10%`** |
+| **Hamming Loss** | `0.1283` | **`0.1081`** | `-0.0202` | **`-15.74%` (Error Reduction)** |
+| **Matthews Correlation (MCC)** | `0.3885` | **`0.4118`** | `+0.0233` | **`+6.00%`** |
+
+#### Key Category-Specific Gains with Synthetic Augmentation:
+- **Authorized Disclosure F1**: Increased from `0.3404` to **`0.6286`** (**+84.7%** gain)
+- **Term & Termination F1**: Increased from `0.4524` to **`0.5714`** (**+26.3%** gain)
+- **Intellectual Property F1**: Increased from `0.5714` to **`0.6667`** (**+16.7%** gain)
+- **Liability for Damages F1**: Increased from `0.5957` to **`0.6667`** (**+11.9%** gain)
+- **Party Identification F1**: Increased from `0.4318` to **`0.4950`** (**+14.6%** gain)
+
+---
+
+### 2. Multi-Model Architecture Comparison (EXP-12)
+
+Evaluating three transformer architectures under identical training configurations (Class-Weighted BCE loss, 5,344 training clauses, Early Stopping patience=2):
+
+| Model Architecture | Best Val Macro F1 | Optimal Threshold | Test Macro F1 | Test Micro F1 | Test Weighted F1 | Minority F1 | Hamming Loss | MCC |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`saibo/legal-roberta-base`** | `0.5589` | `0.50` | **`0.4457`** | `0.5389` | `0.5366` | **`0.3574`** | `0.1077` | `0.3884` |
+| **`nlpaueb/legal-bert-base-uncased`** | `0.5545` | `0.55` | `0.4443` | **`0.5597`** | **`0.5537`** | `0.3382` | **`0.1038`** | `0.3938` |
+| **`microsoft/deberta-v3-base`** | `0.5588` | `0.60` | `0.4404` | `0.5252` | `0.5382` | `0.3377` | `0.1111` | **`0.3954`** |
+
+---
+
+### 3. Per-Category 14-Label F1 Score Breakdown (EXP-12)
+
+| Legal Clause Category | Legal-RoBERTa | Legal-BERT | DeBERTa-v3 | Winning Architecture |
+| :--- | :---: | :---: | :---: | :---: |
+| **Party Identification** | `0.4375` | **`0.4419`** | `0.3908` | `Legal-BERT` |
+| **Purpose** | **`0.1905`** | `0.0000` | **`0.1905`** | `Legal-RoBERTa / DeBERTa-v3` |
+| **NDA Type** | `0.0000` | `0.0000` | `0.0000` | `Baseline` |
+| **Definition of Confidential Information** | `0.3871` | **`0.4737`** | `0.4242` | `Legal-BERT` |
+| **Confidentiality Obligations** | `0.4762` | **`0.5614`** | `0.5385` | `Legal-BERT` |
+| **Authorized Disclosure** | **`0.6250`** | `0.6000` | `0.5625` | `Legal-RoBERTa` |
+| **Non-Confidential Information** | `0.0000` | `0.0000` | `0.0000` | `Baseline` |
+| **Liability for Damages** | **`0.6286`** | `0.6000` | `0.4179` | `Legal-RoBERTa` |
+| **Competition Rights** | `0.5660` | **`0.5882`** | `0.5357` | `Legal-BERT` |
+| **Term and Termination** | `0.5714` | `0.6076` | **`0.6197`** | `DeBERTa-v3` |
+| **Intellectual Property** | `0.6897` | `0.6429` | **`0.7143`** | `DeBERTa-v3` |
+| **Employees** | `0.5152` | `0.4941` | **`0.5455`** | `DeBERTa-v3` |
+| **Governing Law and Jurisdiction** | `0.5455` | `0.5714` | **`0.6000`** | `DeBERTa-v3` |
+| **Additional Information** | `0.6070` | **`0.6394`** | `0.6256` | `Legal-BERT` |
+
+---
+
 ## 🚀 Quick Start & Installation
 
 ### Prerequisites
