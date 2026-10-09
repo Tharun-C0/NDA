@@ -1,0 +1,31 @@
+# Environment files
+.env
+*.env
+
+# Python cache & artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Large model weights and checkpoints
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+*.h5
+*.tflite
+*.ckpt
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db

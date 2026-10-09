@@ -1,0 +1,15 @@
+category,label_col,precision,recall,f1_score,mcc,support,tp,fp,fn,tn
+Party Identification,label_party_identification,0.0,0.0,0.0,0.0,29,0,0,29,207
+Purpose,label_purpose,0.0,0.0,0.0,0.0,7,0,0,7,229
+NDA Type,label_nda_type,0.0,0.0,0.0,0.0,1,0,0,1,235
+Definition of Confidential Information,label_definition_of_confidential_information,0.0,0.0,0.0,0.0,21,0,0,21,215
+Confidentiality Obligations,label_confidentiality_obligations,0.0,0.0,0.0,0.0,18,0,0,18,218
+Authorized Disclosure,label_authorized_disclosure,0.0,0.0,0.0,0.0,14,0,0,14,222
+Non-Confidential Information,label_non-confidential_information,0.0,0.0,0.0,0.0,7,0,0,7,229
+Liability for Damages,label_liability_for_damages,0.0,0.0,0.0,0.0,16,0,0,16,220
+Competition Rights,label_competition_rights,0.0,0.0,0.0,0.0,22,0,0,22,214
+Term and Termination,label_term_and_termination,0.0,0.0,0.0,0.0,29,0,0,29,207
+Intellectual Property,label_intellectual_property,0.0,0.0,0.0,0.0,14,0,0,14,222
+Employees,label_employees,0.0,0.0,0.0,0.0,24,0,0,24,212
+Governing Law and Jurisdiction,label_governing_law_and_jurisdiction,0.0,0.0,0.0,0.0,7,0,0,7,229
+Additional Information,label_additional_information,0.0,0.0,0.0,0.0,110,0,0,110,126
