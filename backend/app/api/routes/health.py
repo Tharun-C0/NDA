@@ -1,6 +1,11 @@
 from fastapi import APIRouter
-from app.core.config import settings
-from app.schemas.health import HealthResponse
+try:
+    from backend.app.core.config import settings
+    from backend.app.schemas.health import HealthResponse
+except ModuleNotFoundError:
+    from app.core.config import settings
+    from app.schemas.health import HealthResponse
+
 
 router = APIRouter()
 

@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api/v1"
+    HF_MODEL_ID: str = "THARUNC0/legal-roberta-nda-clause-classifier"
+    HF_TOKEN: Union[str, None] = None
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
         "http://localhost:5173",

@@ -1,0 +1,61 @@
+# Environment secrets and tokens
+.env
+*.env
+*.pem
+*.key
+
+# Python bytecode and virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+venv/
+env/
+ENV/
+
+# Model weights, checkpoints, and experiment outputs
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+artifacts/
+experiments/
+models/
+evaluation/
+
+# Offline training datasets and data pipelines
+data/
+*.csv
+nda_clause_dataset_5000.csv
+external_data/
+notebooks/
+preprocessing/
+training/
+scripts/
+backups/
+
+# Runtime storage and SQLite databases
+storage/
+*.db
+*.sqlite
+
+# Version control, IDE, and document files
+.git/
+.gitignore
+.vscode/
+.idea/
+*.pdf
+*.pptx
+
+# Frontend build files and dependencies
+frontend/
+node_modules/
+
+# Reports and temporary files
+reports/
+scratch/
+*.log
+*.tmp

@@ -15,10 +15,11 @@ def test_real_checkpoint_loading_and_inference(model_key):
     if not ckpt_path.exists():
         pytest.skip(f"Checkpoint path {ckpt_path} does not exist.")
 
-    tokenizer, model, device = load_model_and_tokenizer(model_key)
+    tokenizer, model, device, *rest = load_model_and_tokenizer(model_key)
     assert tokenizer is not None
     assert model is not None
     assert model.config.num_labels == 14
+
 
     test_clauses = [
         "The Receiving Party shall maintain all Confidential Information in strict confidence.",

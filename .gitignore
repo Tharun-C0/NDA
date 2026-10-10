@@ -36,3 +36,8 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# Local export artifacts & temporary scratch files
+artifacts/
+scratch/
+*.tmp
+

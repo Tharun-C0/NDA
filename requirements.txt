@@ -19,7 +19,9 @@ httpx>=0.24.0
 # --- Machine Learning & Transformers ---
 torch>=2.0.0
 transformers>=4.30.0
+huggingface-hub>=0.16.0
 scikit-learn>=1.3.0
+
 
 # --- Data Processing & Scientific ---
 pandas>=2.0.0

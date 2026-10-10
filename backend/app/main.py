@@ -1,8 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import settings
-from app.api.routes import api_router
+try:
+    from backend.app.core.config import settings
+    from backend.app.api.routes import api_router
+except ModuleNotFoundError:
+    from app.core.config import settings
+    from app.api.routes import api_router
+
 
 app = FastAPI(
     title=settings.APP_NAME,
