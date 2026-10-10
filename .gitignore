@@ -41,3 +41,6 @@ artifacts/
 scratch/
 *.tmp
 
+
+# Local Python virtual environment
+.venv/
